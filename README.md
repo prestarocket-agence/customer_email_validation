@@ -1,3 +1,5 @@
-# [PrestaShop Module] Customer Email Validation
+# [PrestaShop Module] Customer Email Validation ![PSVersion](https://img.shields.io/static/v1?label=PS%20Compliant&message=1.7.x&color=green) ![Repo Stars](https://img.shields.io/github/stars/CastoGraziano/customer_email_validation) ![Repo Watchers](https://img.shields.io/github/watchers/CastoGraziano/customer_email_validation)
 
-[![Release Build](https://github.com/CastoGraziano/customer_email_validation/actions/workflows/build-release.yml/badge.svg)](https://github.com/CastoGraziano/customer_email_validation/actions/workflows/build-release.yml)
+![Latest Version](https://img.shields.io/github/v/release/CastoGraziano/customer_email_validation?label=Version) ![Latest Release](https://img.shields.io/github/release-date/CastoGraziano/customer_email_validation?label=Latest%20Release)  ![License](https://img.shields.io/github/license/CastoGraziano/customer_email_validation) [![build](https://github.com/CastoGraziano/customer_email_validation/actions/workflows/build-release.yml/badge.svg)](https://github.com/CastoGraziano/customer_email_validation/actions/workflows/build-release.yml) ![downloads](https://img.shields.io/github/downloads/CastoGraziano/customer_email_validation/total?label=Downloads) ![pull requests](https://img.shields.io/github/issues-pr-raw/CastoGraziano/customer_email_validation?label=Open%20Pull%20Requests) ![improvements](https://img.shields.io/github/issues/CastoGraziano/customer_email_validation/improvements?label=Improvements)
+
+
