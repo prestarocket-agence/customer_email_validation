@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+	<name>customer_email_validation</name>
+	<displayName><![CDATA[Customer Email Validation]]></displayName>
+	<version><![CDATA[0.1.0]]></version>
+	<description><![CDATA[PrestaShop module to validate customer email after account registration]]></description>
+	<author><![CDATA[@CastoGraziano]]></author>
+	<tab><![CDATA[administration]]></tab>
+	<is_configurable>1</is_configurable>
+	<need_instance>1</need_instance>
+</module>
