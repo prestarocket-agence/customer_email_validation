@@ -63,14 +63,23 @@ class Customer_email_validation extends Module
 
         return parent::install() &&
             $this->registerHook('header') &&
-            $this->registerHook('backOfficeHeader');
+            $this->registerHook('backOfficeHeader') && 
+            $this->registerHook('actionCustomerAccountAdd')  &&
+            Db::getInstance()->execute(
+            'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'customer_email_confirmation_token` (
+                     `id_customer_email_confirmation_token` int(11) unsigned NOT NULL AUTO_INCREMENT,
+                     `id_customer` INT( 11 ) UNSIGNED NOT NULL,
+                     `token` CHAR(32) NOT NULL,
+                     `issued_on` CHAR(32) NOT NULL,
+                     PRIMARY KEY (`id_customer_email_confirmation_token`)
+                     ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
     }
 
     public function uninstall()
     {
         Configuration::deleteByName('CUSTOMER_EMAIL_VALIDATION_LIVE_MODE');
 
-        return parent::uninstall();
+        return parent::uninstall() && Db::getInstance()->execute('DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'customer_email_confirmation_token`;');
     }
 
     /**
@@ -214,5 +223,80 @@ class Customer_email_validation extends Module
     {
         $this->context->controller->addJS($this->_path.'/views/js/front.js');
         $this->context->controller->addCSS($this->_path.'/views/css/front.css');
+    }
+
+    public function hookActionCustomerAccountAdd($params)
+    {
+        $disable_customer_result = self::disableAndLogoutCustomer($params['newCustomer']->id);
+
+        if (!$disable_customer_result) {
+            Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsenterror'));
+        }
+
+        if(!self::sendConfirmationEmail($params['newCustomer']->id)) {
+            Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsenterror'));
+        }else{
+            Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsentsuccess'));
+        }
+    }
+
+    private static function generateTokenUrl($id_customer){
+        $token = md5(uniqid(rand(), true));
+
+        $result = Db::getInstance()->insert(
+            'customer_email_confirmation_token',
+            array(
+                'id_customer' => (int) $id_customer,
+                'token' => $token,
+                'issued_on' => date('Y-m-d H:i:s')
+            )
+        );
+
+        if(false === $result){
+            return false;
+        }
+        
+        $token_url = $this->context->link->getModuleLink($this->name, 'activateaccount') . '?token=' . $token;
+        
+        return $token_url;
+    }
+
+    private static function sendConfirmationEmail($id_customer){
+
+        $token_url = self::generateTokenUrl($id_customer);
+
+        if(false === $token_url){
+            return false;
+        }
+
+        $customer = new Customer($id_customer);
+        $customer->getFields();
+
+        Mail::Send($this->context->customer->id_lang,
+                   'confirm_customer_email',
+                   $this->l('Email Confirmation'),
+                   array('{firstname}' => $customer->firstname,
+                         '{lastname}' => $customer->lastname,
+                         '{email}' => $customer->email,
+                         '{link}' => $token_url),
+                   $customer->email,
+                   NULL,
+                   NULL,
+                   NULL,
+                   NULL,
+                   NULL,
+            _PS_MODULE_DIR_ . 'customer_email_validation/mails');
+        
+        return true;
+    }
+
+    private static function disableAndLogoutCustomer($id_customer){
+        $customer = new Customer($id_customer);
+        $customer->active = 0;
+        $customer->update();
+
+        $customer->logout();
+
+        return true;
     }
 }
