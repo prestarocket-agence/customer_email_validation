@@ -227,20 +227,20 @@ class Customer_email_validation extends Module
 
     public function hookActionCustomerAccountAdd($params)
     {
-        $disable_customer_result = self::disableAndLogoutCustomer($params['newCustomer']->id);
+        $disable_customer_result = $this->disableAndLogoutCustomer($params['newCustomer']->id);
 
         if (!$disable_customer_result) {
             Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsenterror'));
         }
 
-        if(!self::sendConfirmationEmail($params['newCustomer']->id)) {
+        if(!$this->sendConfirmationEmail($params['newCustomer']->id)) {
             Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsenterror'));
         }else{
             Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsentsuccess'));
         }
     }
 
-    private static function generateTokenUrl($id_customer){
+    private function generateTokenUrl($id_customer){
         $token = md5(uniqid(rand(), true));
 
         $result = Db::getInstance()->insert(
@@ -261,9 +261,9 @@ class Customer_email_validation extends Module
         return $token_url;
     }
 
-    private static function sendConfirmationEmail($id_customer){
+    private function sendConfirmationEmail($id_customer){
 
-        $token_url = self::generateTokenUrl($id_customer);
+        $token_url = $this->generateTokenUrl($id_customer);
 
         if(false === $token_url){
             return false;
@@ -272,7 +272,7 @@ class Customer_email_validation extends Module
         $customer = new Customer($id_customer);
         $customer->getFields();
 
-        Mail::Send($this->context->customer->id_lang,
+        return Mail::Send($this->context->customer->id_lang,
                    'confirm_customer_email',
                    $this->l('Email Confirmation'),
                    array('{firstname}' => $customer->firstname,
@@ -287,10 +287,9 @@ class Customer_email_validation extends Module
                    NULL,
             _PS_MODULE_DIR_ . 'customer_email_validation/mails');
         
-        return true;
     }
 
-    private static function disableAndLogoutCustomer($id_customer){
+    private function disableAndLogoutCustomer($id_customer){
         $customer = new Customer($id_customer);
         $customer->active = 0;
         $customer->update();
