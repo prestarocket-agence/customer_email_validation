@@ -1,28 +1,29 @@
 <?php
+
 /**
-* 2007-2022 PrestaShop
-*
-* NOTICE OF LICENSE
-*
-* This source file is subject to the Academic Free License (AFL 3.0)
-* that is bundled with this package in the file LICENSE.txt.
-* It is also available through the world-wide-web at this URL:
-* http://opensource.org/licenses/afl-3.0.php
-* If you did not receive a copy of the license and are unable to
-* obtain it through the world-wide-web, please send an email
-* to license@prestashop.com so we can send you a copy immediately.
-*
-* DISCLAIMER
-*
-* Do not edit or add to this file if you wish to upgrade PrestaShop to newer
-* versions in the future. If you wish to customize PrestaShop for your
-* needs please refer to http://www.prestashop.com for more information.
-*
-*  @author    PrestaShop SA <contact@prestashop.com>
-*  @copyright 2007-2022 PrestaShop SA
-*  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
-*  International Registered Trademark & Property of PrestaShop SA
-*/
+ * 2007-2022 PrestaShop
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License (AFL 3.0)
+ * that is bundled with this package in the file LICENSE.txt.
+ * It is also available through the world-wide-web at this URL:
+ * http://opensource.org/licenses/afl-3.0.php
+ * If you did not receive a copy of the license and are unable to
+ * obtain it through the world-wide-web, please send an email
+ * to license@prestashop.com so we can send you a copy immediately.
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade PrestaShop to newer
+ * versions in the future. If you wish to customize PrestaShop for your
+ * needs please refer to http://www.prestashop.com for more information.
+ *
+ *  @author    PrestaShop SA <contact@prestashop.com>
+ *  @copyright 2007-2022 PrestaShop SA
+ *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ *  International Registered Trademark & Property of PrestaShop SA
+ */
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -60,24 +61,29 @@ class Customer_email_validation extends Module
     public function install()
     {
         Configuration::updateValue('CUSTOMER_EMAIL_VALIDATION_LIVE_MODE', false);
+        Configuration::updateValue('CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL', false);
 
         return parent::install() &&
             $this->registerHook('header') &&
-            $this->registerHook('backOfficeHeader') && 
+            $this->registerHook('backOfficeHeader') &&
             $this->registerHook('actionCustomerAccountAdd')  &&
+            $this->registerHook('actionGetExtraMailTemplateVars') &&
+            $this->registerHook('actionEmailAddAfterContent') &&
             Db::getInstance()->execute(
-            'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'customer_email_confirmation_token` (
+                'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'customer_email_confirmation_token` (
                      `id_customer_email_confirmation_token` int(11) unsigned NOT NULL AUTO_INCREMENT,
                      `id_customer` INT( 11 ) UNSIGNED NOT NULL,
                      `token` CHAR(32) NOT NULL,
                      `issued_on` CHAR(32) NOT NULL,
                      PRIMARY KEY (`id_customer_email_confirmation_token`)
-                     ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
+                     ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;'
+            );
     }
 
     public function uninstall()
     {
         Configuration::deleteByName('CUSTOMER_EMAIL_VALIDATION_LIVE_MODE');
+        Configuration::deleteByName('CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL');
 
         return parent::uninstall() && Db::getInstance()->execute('DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'customer_email_confirmation_token`;');
     }
@@ -96,9 +102,9 @@ class Customer_email_validation extends Module
 
         $this->context->smarty->assign('module_dir', $this->_path);
 
-        $output = $this->context->smarty->fetch($this->local_path.'views/templates/admin/configure.tpl');
+        $output = $this->context->smarty->fetch($this->local_path . 'views/templates/admin/configure.tpl');
 
-        return $output.$this->renderForm();
+        return $output . $this->renderForm();
     }
 
     /**
@@ -117,7 +123,7 @@ class Customer_email_validation extends Module
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitCustomer_email_validationModule';
         $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false)
-            .'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name;
+            . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
         $helper->token = Tools::getAdminTokenLite('AdminModules');
 
         $helper->tpl_vars = array(
@@ -137,8 +143,8 @@ class Customer_email_validation extends Module
         return array(
             'form' => array(
                 'legend' => array(
-                'title' => $this->l('Settings'),
-                'icon' => 'icon-cogs',
+                    'title' => $this->l('Settings'),
+                    'icon' => 'icon-cogs',
                 ),
                 'input' => array(
                     array(
@@ -161,23 +167,29 @@ class Customer_email_validation extends Module
                         ),
                     ),
                     array(
-                        'col' => 3,
-                        'type' => 'text',
-                        'prefix' => '<i class="icon icon-envelope"></i>',
-                        'desc' => $this->l('Enter a valid email address'),
-                        'name' => 'CUSTOMER_EMAIL_VALIDATION_ACCOUNT_EMAIL',
-                        'label' => $this->l('Email'),
+                        'type' => 'switch',
+                        'label' => $this->l('Use custom email'),
+                        'name' => 'CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL',
+                        'is_bool' => true,
+                        'desc' => $this->l('Use custom email to send email confirmation token url'),
+                        'values' => array(
+                            array(
+                                'id' => 'active_on',
+                                'value' => true,
+                                'label' => $this->l('Enabled')
+                            ),
+                            array(
+                                'id' => 'active_off',
+                                'value' => false,
+                                'label' => $this->l('Disabled')
+                            )
+                        ),
                     ),
-                    array(
-                        'type' => 'password',
-                        'name' => 'CUSTOMER_EMAIL_VALIDATION_ACCOUNT_PASSWORD',
-                        'label' => $this->l('Password'),
+                    'submit' => array(
+                        'title' => $this->l('Save'),
                     ),
                 ),
-                'submit' => array(
-                    'title' => $this->l('Save'),
-                ),
-            ),
+            )
         );
     }
 
@@ -188,8 +200,7 @@ class Customer_email_validation extends Module
     {
         return array(
             'CUSTOMER_EMAIL_VALIDATION_LIVE_MODE' => Configuration::get('CUSTOMER_EMAIL_VALIDATION_LIVE_MODE', true),
-            'CUSTOMER_EMAIL_VALIDATION_ACCOUNT_EMAIL' => Configuration::get('CUSTOMER_EMAIL_VALIDATION_ACCOUNT_EMAIL', 'contact@prestashop.com'),
-            'CUSTOMER_EMAIL_VALIDATION_ACCOUNT_PASSWORD' => Configuration::get('CUSTOMER_EMAIL_VALIDATION_ACCOUNT_PASSWORD', null),
+            'CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL' => Configuration::get('CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL', false),
         );
     }
 
@@ -206,13 +217,13 @@ class Customer_email_validation extends Module
     }
 
     /**
-    * Add the CSS & JavaScript files you want to be loaded in the BO.
-    */
+     * Add the CSS & JavaScript files you want to be loaded in the BO.
+     */
     public function hookBackOfficeHeader()
     {
         if (Tools::getValue('module_name') == $this->name) {
-            $this->context->controller->addJS($this->_path.'views/js/back.js');
-            $this->context->controller->addCSS($this->_path.'views/css/back.css');
+            $this->context->controller->addJS($this->_path . 'views/js/back.js');
+            $this->context->controller->addCSS($this->_path . 'views/css/back.css');
         }
     }
 
@@ -221,8 +232,8 @@ class Customer_email_validation extends Module
      */
     public function hookHeader()
     {
-        $this->context->controller->addJS($this->_path.'/views/js/front.js');
-        $this->context->controller->addCSS($this->_path.'/views/css/front.css');
+        $this->context->controller->addJS($this->_path . '/views/js/front.js');
+        $this->context->controller->addCSS($this->_path . '/views/css/front.css');
     }
 
     public function hookActionCustomerAccountAdd($params)
@@ -233,14 +244,54 @@ class Customer_email_validation extends Module
             Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsenterror'));
         }
 
-        if(!$this->sendConfirmationEmail($params['newCustomer']->id)) {
+        if (Configuration::get('CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL', false) && !$this->sendConfirmationEmail($params['newCustomer']->id)) {
             Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsenterror'));
-        }else{
+        } else {
             Tools::redirect($this->context->link->getModuleLink($this->name, 'emailsentsuccess'));
         }
     }
 
-    private function generateTokenUrl($id_customer){
+    public function hookActionGetExtraMailTemplateVars($param)
+    {
+        if (!Configuration::get('CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL', false) && $param['template'] == 'account') {
+
+            $customer_email = $param['template_vars']['{email}'];
+            if (isset($customer_email) && !empty($customer_email)) {
+                $customer_id = Customer::customerExists($customer_email, true);
+                if ($customer_id) {
+                    $customer = new Customer($customer_id);
+                    $customer_email_validation_token = $this->generateTokenUrl($customer->id);
+                    $param['extra_template_vars'] = array_merge($param['extra_template_vars'], array(
+                        '{email_confirmation_token}' => $customer_email_validation_token,
+                    ));
+                    return $param;
+                }
+            }
+        }
+    }
+
+    public function hookActionEmailAddAfterContent($param)
+    {
+        if (!Configuration::get('CUSTOMER_EMAIL_VALIDATION_USE_CUSTOM_EMAIL', false) && $param['template'] == 'account') {
+
+            $templateHtml = Tools::file_get_contents(_PS_MODULE_DIR_ . 'customer_email_validation/mails/en/account_confirmation.html');
+            $templateTxt = strip_tags(
+                html_entity_decode(
+                    Tools::file_get_contents(_PS_MODULE_DIR_ . 'customer_email_validation/mails/en/account_confirmation.txt'),
+                    null,
+                    'utf-8'
+                )
+            );
+
+            $param['template_html'] = $templateHtml;
+            $param['template_txt'] = $templateTxt;
+
+            return $param;
+        }
+    }
+
+    private function generateTokenUrl($id_customer)
+    {
         $token = md5(uniqid(rand(), true));
 
         $result = Db::getInstance()->insert(
@@ -252,44 +303,49 @@ class Customer_email_validation extends Module
             )
         );
 
-        if(false === $result){
+        if (false === $result) {
             return false;
         }
-        
+
         $token_url = $this->context->link->getModuleLink($this->name, 'activateaccount') . '?token=' . $token;
-        
+
         return $token_url;
     }
 
-    private function sendConfirmationEmail($id_customer){
+    private function sendConfirmationEmail($id_customer)
+    {
 
         $token_url = $this->generateTokenUrl($id_customer);
 
-        if(false === $token_url){
+        if (false === $token_url) {
             return false;
         }
 
         $customer = new Customer($id_customer);
         $customer->getFields();
 
-        return Mail::Send($this->context->customer->id_lang,
-                   'confirm_customer_email',
-                   $this->l('Email Confirmation'),
-                   array('{firstname}' => $customer->firstname,
-                         '{lastname}' => $customer->lastname,
-                         '{email}' => $customer->email,
-                         '{link}' => $token_url),
-                   $customer->email,
-                   NULL,
-                   NULL,
-                   NULL,
-                   NULL,
-                   NULL,
-            _PS_MODULE_DIR_ . 'customer_email_validation/mails');
-        
+        return Mail::Send(
+            $this->context->customer->id_lang,
+            'confirm_customer_email',
+            $this->l('Email Confirmation'),
+            array(
+                '{firstname}' => $customer->firstname,
+                '{lastname}' => $customer->lastname,
+                '{email}' => $customer->email,
+                '{link}' => $token_url
+            ),
+            $customer->email,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            _PS_MODULE_DIR_ . 'customer_email_validation/mails'
+        );
     }
 
-    private function disableAndLogoutCustomer($id_customer){
+    private function disableAndLogoutCustomer($id_customer)
+    {
         $customer = new Customer($id_customer);
         $customer->active = 0;
         $customer->update();
